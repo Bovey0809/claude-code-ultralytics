@@ -1,6 +1,6 @@
 ---
 description: Export a YOLO .pt model to ONNX, CoreML, TensorRT, TFLite, OpenVINO, etc.
-argument-hint: model=path/to/best.pt format=onnx|coreml|engine|tflite|openvino|torchscript|saved_model|pb|paddle|ncnn
+argument-hint: "model=path/to/best.pt format=onnx|coreml|engine|tflite|openvino|torchscript|saved_model|pb|paddle|ncnn"
 ---
 
 # /export

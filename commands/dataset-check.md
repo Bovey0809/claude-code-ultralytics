@@ -1,6 +1,6 @@
 ---
 description: Validate an Ultralytics dataset YAML — checks paths resolve, splits have images, labels exist, class ids match `names`. Pure validation, does not invoke yolo.
-argument-hint: [path/to/data.yaml]
+argument-hint: "[path/to/data.yaml]"
 ---
 
 # /dataset-check

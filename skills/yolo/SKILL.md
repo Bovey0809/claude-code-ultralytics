@@ -55,10 +55,10 @@ Labels live alongside images at `labels/train/...txt` and `labels/val/...txt`. E
 
 When the user asks to:
 
-- **train a model** → invoke `/train` (parses args or asks for `model`/`data`/`epochs`).
-- **run inference / predict / detect on an image** → invoke `/predict`.
-- **export to ONNX / CoreML / TensorRT / etc.** → invoke `/export`.
-- **validate a dataset / check data.yaml** → invoke `/dataset-check`.
+- **train a model** → invoke `/ultralytics:train` (parses args or asks for `model`/`data`/`epochs`).
+- **run inference / predict / detect on an image** → invoke `/ultralytics:predict`.
+- **export to ONNX / CoreML / TensorRT / etc.** → invoke `/ultralytics:export`.
+- **validate a dataset / check data.yaml** → invoke `/ultralytics:dataset-check`.
 
 Pass any `key=value` tokens the user already provided through to the command verbatim.
 

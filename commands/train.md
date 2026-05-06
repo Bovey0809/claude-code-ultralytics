@@ -1,6 +1,6 @@
 ---
 description: Train an Ultralytics YOLO model. Accepts key=value args (model=, data=, epochs=, …) or natural language.
-argument-hint: [model=yolo11n.pt] [data=coco8.yaml] [epochs=100] [imgsz=640] [batch=16] [device=0]
+argument-hint: "[model=yolo11n.pt] [data=coco8.yaml] [epochs=100] [imgsz=640] [batch=16] [device=0]"
 ---
 
 # /train

@@ -1,6 +1,6 @@
 ---
 description: Run YOLO inference on an image, directory, video, URL, or webcam. Accepts key=value args or natural language.
-argument-hint: [model=yolo11n.pt] [source=path/url/0] [conf=0.25] [save=True]
+argument-hint: "[model=yolo11n.pt] [source=path/url/0] [conf=0.25] [save=True]"
 ---
 
 # /predict
