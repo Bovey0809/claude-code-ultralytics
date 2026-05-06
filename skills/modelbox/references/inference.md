@@ -19,44 +19,24 @@ ACL, MindSpore, and OpenVINO via a single TOML interface — swap
 ## TOML config (`inference.toml`)
 
 ```toml
-#
-# Copyright 2021 The Modelbox Project Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 [base]
-name = "example"
-device = "cuda"  
+name = "inference"
+device = "cuda"
 version = "1.0.0"
-description = "description"
-entry = "./model.pb"  # model file path
-type = "inference" 
-virtual_type = "tensorflow" # inference engine type: 'tensorflow', 'tensorrt', 'torch', 'acl', 'mindspore' 
-group_type = "Inference"  # flowunit group attribution 
+type = "inference"
+virtual_type = "tensorrt"
+entry = "./model.engine"
 
 [config]
-plugin = ""  # it take effect when 'virtual_type' is 'tensorrt', it can be set to 'yolo' to provide upsampling layer 
+plugin = ""
 
-# input port description, suporrt multiple input ports
-[input]
-[input.input1] # input port number, Format is input.input[N]
-name = "in_1" # input port name
-type = "float" # input port data type ,e.g. float or int. optional.
+[input.input1]
+name = "input"
+type = "float"
 
-# output port description, suporrt multiple output ports
-[output]
-[output.output1] # output port number, Format is output.output[N]
-name = "out_1" # output port name
+[output.output1]
+name = "output"
+type = "float"
 ```
 
 ## Ports

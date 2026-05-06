@@ -146,7 +146,8 @@ This is Recipe 1 with three lines changed (marked `# ← changed`):
   graphconf = """digraph rtsp_detect_broker {
     node [shape=Mrecord]
 
-    video_demuxer[type=flowunit, flowunit=video_demuxer, device=cpu]
+    video_demuxer[type=flowunit, flowunit=video_demuxer, device=cpu,
+                  source_url="${rtsp_url}"]
     video_decoder[type=flowunit, flowunit=video_decoder, device=cuda,
                   pix_fmt="rgb"]
     image_process[type=flowunit, flowunit=image_process, device=cuda,

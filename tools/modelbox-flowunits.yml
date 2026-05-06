@@ -17,8 +17,26 @@ flowunits:
       ACL, MindSpore, and OpenVINO via a single TOML interface — swap
       `virtual_type` and `entry` to change chip target.
     source_dir: src/drivers/common/flowunit/inference
-    example_toml: examples/flowunit/infer/example.toml
-    default_toml: ""
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "inference"
+      device = "cuda"
+      version = "1.0.0"
+      type = "inference"
+      virtual_type = "tensorrt"
+      entry = "./model.engine"
+
+      [config]
+      plugin = ""
+
+      [input.input1]
+      name = "input"
+      type = "float"
+
+      [output.output1]
+      name = "output"
+      type = "float"
     ports:
       inputs:
         - name: input
