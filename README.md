@@ -11,6 +11,7 @@ All commands and the skill are namespaced under `/ultralytics:`.
 - **`/ultralytics:predict`** — wraps `yolo predict`. Image, directory, video, URL, or webcam.
 - **`/ultralytics:export`** — wraps `yolo export`. ONNX, CoreML, TensorRT, TFLite, OpenVINO, …
 - **`/ultralytics:dataset-check`** — read-only validator for `data.yaml`. Catches missing paths, label/class mismatches, empty splits.
+- **Skill `/ultralytics:modelbox`** — curated index of 19 ModelBox flowunits (TOML config schema, ports, device options, known-good pipeline recipes for NVIDIA + Apple Silicon). Claude consults this when authoring ModelBox deployment graphs.
 
 ## Requirements
 

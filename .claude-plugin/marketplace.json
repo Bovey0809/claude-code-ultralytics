@@ -10,7 +10,7 @@
       "name": "ultralytics",
       "source": "./",
       "description": "Train, predict, export, and validate datasets with Ultralytics YOLO.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "homepage": "https://github.com/Bovey0809/claude-code-ultralytics",
       "repository": "https://github.com/Bovey0809/claude-code-ultralytics",
       "category": "computer-vision",
