@@ -18,7 +18,25 @@ All commands and the skill are namespaced under `/ultralytics:`.
 - Python 3.8+
 - Claude Code
 
-## Install (local dev)
+## Install
+
+### From the marketplace (recommended)
+
+In Claude Code:
+
+```
+/plugin marketplace add Bovey0809/claude-code-ultralytics
+/plugin install ultralytics@ultralytics-plugins
+```
+
+Or from a shell:
+
+```bash
+claude plugin marketplace add Bovey0809/claude-code-ultralytics
+claude plugin install ultralytics@ultralytics-plugins
+```
+
+### Local development
 
 Clone anywhere, then load with `--plugin-dir`:
 
@@ -27,7 +45,7 @@ git clone https://github.com/Bovey0809/claude-code-ultralytics.git
 claude --plugin-dir ./claude-code-ultralytics
 ```
 
-Validate the manifest at any time:
+Validate the manifest:
 
 ```bash
 claude plugin validate ./claude-code-ultralytics
