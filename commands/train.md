@@ -27,7 +27,7 @@ The user input is in `$ARGUMENTS`.
 1. **`yolo` on PATH:** run `command -v yolo`. If empty, instruct the user to `pip install ultralytics` and stop.
 2. **`data` yaml exists:** if `data` ends in `.yaml`/`.yml` and is a local path, confirm it exists. If it doesn't exist locally, note that Ultralytics may auto-download named datasets like `coco8.yaml` and proceed.
 3. **GPU check:** run `python3 -c "import torch; print(torch.cuda.is_available())"`. If `False`, warn the user that training on CPU will be slow and ask whether to continue.
-4. **Run `/dataset-check` logic on the `data` yaml** if it's a local file (delegate to commands/dataset-check.md guidance — at minimum, confirm `train` and `val` keys resolve).
+4. **If `data` is a local `.yaml`/`.yml` file, validate inline:** confirm `train` and `val` keys exist and resolve to directories or files. If they don't, surface the issue and ask the user to run `/dataset-check <data>` for a full report before training.
 
 ## Execution
 
