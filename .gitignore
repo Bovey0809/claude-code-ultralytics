@@ -1,0 +1,35 @@
+# YOLO run outputs and downloaded datasets
+runs/
+datasets/
+wandb/
+
+# Model weights and exported artifacts
+*.pt
+*.onnx
+*.engine
+*.tflite
+*.pb
+*.mlmodel
+*.mlpackage
+*.torchscript
+*.paddle
+*.ncnn
+*_openvino_model/
+*_saved_model/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
