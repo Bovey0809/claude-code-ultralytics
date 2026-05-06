@@ -21,6 +21,27 @@ The user input is in `$ARGUMENTS`.
 - `epochs` — required. Default if user agrees: `100`.
 - `imgsz` — default `640`.
 - `batch` — default `16`.
+- `name` — auto-generated if not supplied; see "Run naming" below.
+- `tag` — **not a `yolo` arg**; if the user passes `tag=<slug>`, do NOT forward it to `yolo` — instead append `_<slug>` to the auto-generated `name`.
+
+## Run naming
+
+If the user did not pass `name=…`, synthesize one and pass it as `name=<synthesized>` so the run lands at `runs/<task>/<synthesized>/` instead of an opaque `runs/<task>/train`/`train2`/`train3`.
+
+Format:
+
+```
+<YYYYMMDD-HHMM>_<model-stem>_<data-stem>_e<epochs>_b<batch>[_<git-sha7>][_<tag>]
+```
+
+- `YYYYMMDD-HHMM`: local time, e.g. `20260506-1432`.
+- `<model-stem>`: model basename without `.pt`, e.g. `yolo11n`, `yolo11s-seg`.
+- `<data-stem>`: data basename without `.yaml`/`.yml`, e.g. `coco8`. For ImageFolder dirs, the directory name.
+- `e<epochs>` / `b<batch>`: the actual values being passed.
+- `<git-sha7>`: only if cwd is inside a git repo — `git rev-parse --short=7 HEAD`. Append `-dirty` if `git status --porcelain` is non-empty.
+- `<tag>`: only if the user passed a `tag=<slug>` token (slug-cased, no spaces).
+
+If `name=` was supplied by the user, use it verbatim and skip synthesis (still record the user-supplied name in the experiment log per below).
 
 ## Preflight checks (do these before running)
 
@@ -49,6 +70,35 @@ After the command completes, report the run directory (look for `Results saved t
 ```bash
 rsync -av <REMOTE>:<WORKDIR>/runs/<task>/<name>/ ./runs/<task>/<name>/
 ```
+
+## Experiment log (opt-in)
+
+If `.ultralytics.yml` (cwd or any ancestor) sets `experiment_log: <path>` (e.g. `runs/EXPERIMENTS.md`), append a row to that file after the run completes — successful or failed. Resolve the path relative to the YAML's directory. Always write to the LOCAL filesystem (not the remote), even when execution is remote.
+
+If the file doesn't exist, create it with this header:
+
+```markdown
+# Experiments
+
+| Started | Run name | Task | Command | Results | Notes |
+|---|---|---|---|---|---|
+```
+
+Then append one row per run:
+
+```markdown
+| 20260506-1432 | 20260506-1432_yolo11n_coco8_e100_b16_a1b2c3d | detect | `yolo train model=yolo11n.pt data=coco8.yaml epochs=100 batch=16 name=20260506-1432_yolo11n_coco8_e100_b16_a1b2c3d` | mAP50-95 0.612, mAP50 0.831, weights `runs/detect/20260506-1432_…/weights/best.pt` | _(fill in)_ |
+```
+
+Field rules:
+- **Started**: same `YYYYMMDD-HHMM` used in the name.
+- **Run name**: the synthesized or user-supplied name.
+- **Task**: detect/segment/classify/pose/obb (infer from the model suffix).
+- **Command**: the exact `yolo …` invocation, NOT the ssh wrapper. Backtick-quoted.
+- **Results**: parse the final-summary lines from `yolo` stdout. Look for `all` row of the metrics table — capture mAP50-95 and mAP50. Add the relative path to `weights/best.pt`. If the run errored, write `FAILED — <one-line reason>` instead.
+- **Notes**: literal placeholder `_(fill in)_` so the user edits later.
+
+When `experiment_log` is unset, do nothing.
 
 ## Notes for the user
 

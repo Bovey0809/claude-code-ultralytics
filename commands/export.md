@@ -46,3 +46,16 @@ After completion, locate the artifact path in stdout (lines like `... export suc
 ```bash
 rsync -av <REMOTE>:<WORKDIR>/<artifact> ./<artifact>
 ```
+
+## Experiment log (opt-in)
+
+If `.ultralytics.yml` (cwd or any ancestor) sets `experiment_log: <path>`, append a row using the same table schema as `/ultralytics:train`. For exports:
+
+- **Started**: `YYYYMMDD-HHMM` at invocation time.
+- **Run name**: `<YYYYMMDD-HHMM>_export_<model-stem>_<format>` (e.g. `20260506-1545_export_yolo11n_onnx`). Exports don't take `name=`, so this is purely a log identifier.
+- **Task**: `export`.
+- **Command**: the exact `yolo export …` invocation.
+- **Results**: the artifact path. If errored, `FAILED — <reason>`.
+- **Notes**: `_(fill in)_`.
+
+If the log file doesn't exist yet, create it with the header from `/ultralytics:train`'s spec. Always write LOCALLY even when execution is remote.

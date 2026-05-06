@@ -90,6 +90,18 @@ When set, `/ultralytics:train`, `/ultralytics:predict`, and `/ultralytics:export
 
 Datasets, local `source=` files, and local `model=` weights must already exist on the remote — Claude will offer `rsync` commands when something is missing or when results are ready to pull back. URL sources and Ultralytics' auto-downloaded named datasets (e.g., `coco8.yaml`) work without manual sync.
 
+## Run naming and experiment log
+
+`/ultralytics:train` synthesizes a meaningful run name when `name=` isn't supplied — `runs/detect/20260506-1432_yolo11n_coco8_e100_b16_a1b2c3d/` instead of `runs/detect/train2/`. Pass `tag=<slug>` to append a label (e.g. `tag=lr-sweep-3`). Pass `name=<your-name>` to override entirely.
+
+Opt in to a markdown experiment log by adding to `.ultralytics.yml`:
+
+```yaml
+experiment_log: runs/EXPERIMENTS.md
+```
+
+Each `/ultralytics:train` and `/ultralytics:export` then appends a row with the command, parsed metrics (mAP50-95, mAP50), weights path, and a `_(fill in)_` notes column you edit later. The log is always local, even when execution is remote.
+
 ## Out of scope (v1)
 
 `yolo tune`, tracking, benchmarks, solutions, Hub login, MCP server.

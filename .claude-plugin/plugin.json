@@ -1,6 +1,6 @@
 {
   "name": "ultralytics",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Train, predict, export, and validate datasets with Ultralytics YOLO from inside Claude Code.",
   "author": {
     "name": "Ultralytics",

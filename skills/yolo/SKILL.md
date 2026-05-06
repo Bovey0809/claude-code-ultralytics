@@ -93,6 +93,15 @@ Use `bash -lc` so the user's login PATH (conda/pyenv/etc.) is loaded. Apply the 
 
 **When to NOT wrap:** `/ultralytics:dataset-check` validates a YAML on the local filesystem; do not wrap it with ssh. It's a static check, not a `yolo` invocation.
 
+## Run naming and experiment log
+
+Two conventions to make experiments self-describing:
+
+- **Auto-generated `name=`** (always on, no config). When the user doesn't pass `name=`, `/ultralytics:train` synthesizes `<YYYYMMDD-HHMM>_<model-stem>_<data-stem>_e<epochs>_b<batch>[_<git-sha7>][_<tag>]` and passes it to `yolo`. Result lands at `runs/<task>/<that-name>/`. Users can override by passing `name=…`, or refine by passing `tag=<slug>` (which appends `_<slug>` to the auto name; `tag` is NOT forwarded to `yolo`).
+- **Experiment log** (opt-in). If `.ultralytics.yml` sets `experiment_log: <path>` (e.g. `runs/EXPERIMENTS.md`), `/ultralytics:train` and `/ultralytics:export` append a row per run with command, parsed metrics (mAP50-95, mAP50), weights path, and a `_(fill in)_` notes placeholder. The log lives on the LOCAL filesystem even when execution is remote.
+
+See the relevant command's "Run naming" / "Experiment log" sections for exact format.
+
 ## Common pitfalls
 
 - **CUDA OOM** → lower `batch` (try `8`, `4`) or `imgsz` (`512`, `416`).
