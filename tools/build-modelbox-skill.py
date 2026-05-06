@@ -92,7 +92,7 @@ _Generated from modelbox@{commit} ({commit_date})._
 
 SKILL_FOOTER = """\
 ---
-_Generated from modelbox@{commit} ({commit_date}). Re-run `make modelbox-skill` to update._
+_Generated from modelbox@{commit} ({commit_date}). Re-run `python3 tools/build-modelbox-skill.py` to update._
 """
 
 

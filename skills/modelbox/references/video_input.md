@@ -11,10 +11,10 @@ modelbox_commit_date: 2026-05-06
 
 ## Purpose
 
-File-based video source. Opens a video file and streams decoded frames.
-Preferred over `data_source_generator` when the source is a single video
-file — it handles container parsing and codec negotiation internally.
-Emits decoded image frames directly; no separate demuxer/decoder needed.
+File-based video source. Emits the source URL as a string token for
+downstream processing. Preferred over `data_source_generator` when the
+source is a single video file — it handles source registration internally.
+Wire `out_video_url` into `video_demuxer` → `video_decoder` to get frames.
 
 ## TOML config (`video_input.toml`)
 
