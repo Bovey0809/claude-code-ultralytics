@@ -62,6 +62,37 @@ When the user asks to:
 
 Pass any `key=value` tokens the user already provided through to the command verbatim.
 
+## Remote execution
+
+YOLO work is GPU-bound; users commonly run training/prediction/export on a remote GPU box and read/write code locally. The four commands honor a remote configuration so Claude transparently wraps invocations with `ssh`.
+
+**Configuration sources, in order of precedence:**
+
+1. **Env vars:** `ULTRALYTICS_REMOTE` (required, e.g. `pose`), `ULTRALYTICS_WORKDIR` (optional, defaults to `~`).
+2. **`.ultralytics.yml`** in the cwd or any ancestor directory:
+   ```yaml
+   remote: pose          # ssh host alias from ~/.ssh/config
+   workdir: ~/yolo       # remote cwd for runs
+   ```
+
+If neither is set, commands run locally as before.
+
+**Wrapping pattern.** When a remote is configured, transform any `yolo …` invocation into:
+
+```bash
+ssh <remote> 'bash -lc "cd <workdir> && yolo <args>"'
+```
+
+Use `bash -lc` so the user's login PATH (conda/pyenv/etc.) is loaded. Apply the same wrapping to preflight probes — for example, `command -v yolo` becomes `ssh <remote> 'bash -lc "command -v yolo"'`, and the `torch.cuda.is_available()` GPU check runs on the remote.
+
+**What does NOT cross the SSH boundary automatically:**
+
+- **Dataset files.** `data=coco8.yaml` and any local image/video `source=` path must already exist on the remote. If a path is local, ask the user whether to `rsync` it up (e.g. `rsync -av ./mydata/ <remote>:<workdir>/mydata/`) or whether the data is already on the remote. URL sources (`source=https://…`) and named datasets that Ultralytics auto-downloads (`coco8.yaml`, `coco128.yaml`) work without sync.
+- **Run outputs.** `runs/<task>/<name>/` lives on the remote. After training/export completes, surface the remote path and offer `rsync -av <remote>:<workdir>/runs/<task>/<name>/ ./runs/<task>/<name>/` so the user can pull weights/artifacts back.
+- **Pretrained weights.** `yolo11n.pt` etc. auto-download on first use — once per remote.
+
+**When to NOT wrap:** `/ultralytics:dataset-check` validates a YAML on the local filesystem; do not wrap it with ssh. It's a static check, not a `yolo` invocation.
+
 ## Common pitfalls
 
 - **CUDA OOM** → lower `batch` (try `8`, `4`) or `imgsz` (`512`, `416`).

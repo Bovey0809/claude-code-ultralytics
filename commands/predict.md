@@ -24,12 +24,26 @@ The user input is in `$ARGUMENTS`.
 
 ## Preflight
 
-- `command -v yolo`; if empty, instruct `pip install ultralytics` and stop.
+- **Detect remote.** Read `ULTRALYTICS_REMOTE` env var; if unset, search cwd and ancestors for `.ultralytics.yml` and read its `remote`/`workdir` keys. If a remote is configured, wrap every Bash invocation below as `ssh <remote> 'bash -lc "cd <workdir> && <cmd>"'`. See the "Remote execution" section of the `yolo` skill.
+- `command -v yolo` (wrapped if remote); if empty, instruct `pip install ultralytics` and stop.
+- **`source` translation.** `source=https://…` and webcam (`source=0`) work over SSH unchanged. A local file/dir path will fail when wrapped — either have the user `rsync` the file to the remote first, or fall back to running locally for that one invocation. Ask the user which.
 
 ## Execution
+
+Local form:
 
 ```bash
 yolo predict model=<MODEL> source=<SOURCE> conf=<CONF> save=<SAVE> [<EXTRA_KV>]
 ```
 
-After the command completes, locate the line `Results saved to runs/<task>/predict<N>` in stdout and report the directory to the user.
+Remote form:
+
+```bash
+ssh <REMOTE> 'bash -lc "cd <WORKDIR> && yolo predict model=<MODEL> source=<SOURCE> conf=<CONF> save=<SAVE> [<EXTRA_KV>]"'
+```
+
+After the command completes, locate the line `Results saved to runs/<task>/predict<N>` in stdout and report the directory to the user. For remote runs, offer:
+
+```bash
+rsync -av <REMOTE>:<WORKDIR>/runs/detect/predict<N>/ ./runs/detect/predict<N>/
+```

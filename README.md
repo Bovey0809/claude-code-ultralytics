@@ -68,6 +68,28 @@ Then:
 3. `/ultralytics:predict model=yolo11n.pt source=https://ultralytics.com/images/bus.jpg` — produces an annotated image under `runs/detect/predict/`.
 4. `/ultralytics:export model=yolo11n.pt format=onnx` — produces `yolo11n.onnx`.
 
+## Remote GPU execution
+
+Most YOLO work needs a GPU. Set a remote in either of two ways:
+
+**Env vars (per-shell):**
+
+```bash
+export ULTRALYTICS_REMOTE=pose      # ssh host alias
+export ULTRALYTICS_WORKDIR=~/yolo   # remote working directory (optional)
+```
+
+**`.ultralytics.yml` (per-project, in your repo or any ancestor of cwd):**
+
+```yaml
+remote: pose
+workdir: ~/yolo
+```
+
+When set, `/ultralytics:train`, `/ultralytics:predict`, and `/ultralytics:export` wrap their `yolo` invocations as `ssh <remote> 'bash -lc "cd <workdir> && yolo …"'`. `/ultralytics:dataset-check` always runs locally (it's a static YAML validator).
+
+Datasets, local `source=` files, and local `model=` weights must already exist on the remote — Claude will offer `rsync` commands when something is missing or when results are ready to pull back. URL sources and Ultralytics' auto-downloaded named datasets (e.g., `coco8.yaml`) work without manual sync.
+
 ## Out of scope (v1)
 
 `yolo tune`, tracking, benchmarks, solutions, Hub login, MCP server.
