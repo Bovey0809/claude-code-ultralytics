@@ -1,0 +1,888 @@
+modelbox_repo: https://github.com/modelbox-ai/modelbox.git
+modelbox_branch: master
+modelbox_commit: 125d1cd6b746cbfd410ac288a1e1f2e2664fb77e
+modelbox_commit_date: "2026-05-06"
+
+flowunits:
+
+  # ── Inference ──────────────────────────────────────────────────────────────
+
+  - name: inference
+    group: Inference
+    devices: [cuda, cpu]
+    use_for: Run any model; virtual_type picks engine
+    purpose: |
+      Generic inference flowunit. Loads a model file and runs it through the
+      engine selected by `virtual_type`. Supports TensorRT, Torch, ONNX Runtime,
+      ACL, MindSpore, and OpenVINO via a single TOML interface — swap
+      `virtual_type` and `entry` to change chip target.
+    source_dir: src/drivers/common/flowunit/inference
+    example_toml: examples/flowunit/infer/example.toml
+    default_toml: ""
+    ports:
+      inputs:
+        - name: input
+          type: float tensor
+          notes: NHWC float32 [1,H,W,3] by default; shape depends on model
+      outputs:
+        - name: output
+          type: float tensor
+          notes: Model-defined shape
+    config_keys:
+      - key: entry
+        required: true
+        default: "—"
+        notes: Path to model file, relative to the flowunit directory
+      - key: virtual_type
+        required: true
+        default: "—"
+        notes: "tensorrt | torch | onnxruntime | acl | mindspore | openvino"
+      - key: device
+        required: true
+        default: "—"
+        notes: "cuda | cpu | ascend | intel_gpu"
+      - key: plugin
+        required: false
+        default: '""'
+        notes: '"yolo" enables upsample layer for legacy YOLOv3 only'
+    notes:
+      - "`entry` is relative to the flowunit's own directory, not the graph TOML"
+      - Use `plugin=\"yolo\"` only for YOLOv3 upsample compat; omit for all other models
+      - Input tensor shape must match the model's expected input exactly
+
+  - name: coreml_inference
+    group: Inference
+    devices: [apple_silicon]
+    use_for: Run CoreML models on Apple Silicon (M-series)
+    purpose: |
+      Apple Silicon inference flowunit. Loads a CoreML model (.mlmodelc or
+      .mlpackage) and runs it via the CoreML framework on the Neural Engine /
+      GPU. Use in place of `inference` when targeting Apple Silicon — set
+      `device=apple_silicon` and `virtual_type=coreml`.
+    source_dir: src/drivers/devices/apple_silicon/flowunit/coreml_inference
+    example_toml: src/demo/apple_silicon_yolo/flowunit/coreml_inference/coreml_inference.toml
+    default_toml: ""
+    ports:
+      inputs:
+        - name: input
+          type: image tensor
+          notes: Float32 tensor in model's expected layout
+      outputs:
+        - name: output
+          type: float tensor
+          notes: Model-defined shape
+    config_keys:
+      - key: entry
+        required: true
+        default: "—"
+        notes: Path to .mlmodelc or .mlpackage, relative to flowunit directory
+      - key: device
+        required: true
+        default: apple_silicon
+        notes: Must be `apple_silicon`; any other value selects a different engine
+      - key: virtual_type
+        required: true
+        default: coreml
+        notes: Must be `coreml`
+    notes:
+      - device must be `apple_silicon` exactly; omitting or using `cpu` will fail
+      - Pair with `video_encoder` using `encoder=h264_videotoolbox` on macOS for hardware encode
+      - Export model with `yolo export format=coreml` before use
+
+  # ── Sources ────────────────────────────────────────────────────────────────
+
+  - name: video_input
+    group: Input
+    devices: [cpu]
+    use_for: Open a video file and stream decoded frames
+    purpose: |
+      File-based video source. Opens a video file and streams decoded frames.
+      Preferred over `data_source_generator` when the source is a single video
+      file — it handles container parsing and codec negotiation internally.
+      Emits decoded image frames directly; no separate demuxer/decoder needed.
+    source_dir: src/drivers/common/flowunit/video_input
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "video_input"
+      device = "cpu"
+      version = "1.0.0"
+      type = "video_input"
+
+      [config]
+      source_url = "${input_video}"
+    ports:
+      inputs: []
+      outputs:
+        - name: out_video_url
+          type: string
+          notes: Source URL forwarded to downstream demuxer/decoder chain
+    config_keys:
+      - key: source_url
+        required: true
+        default: "—"
+        notes: File path or URL to the video file; supports ${var} expansion
+    notes:
+      - Prefer this over data_source_generator for single video file inputs
+      - Does not demux/decode itself — wire out_video_url into video_demuxer
+
+  - name: data_source_generator
+    group: Input
+    devices: [cpu]
+    use_for: File/dir source (replays paths into a stream)
+    purpose: |
+      Generic file/directory source. Replays file paths (or directory globs)
+      into a stream, one path per data item. Use for image directories or when
+      you need fine-grained control over batching and retries. Prefer
+      `video_input` for single video files.
+    source_dir: src/drivers/common/flowunit/data_source_generator
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "data_source_generator"
+      device = "cpu"
+      version = "1.0.0"
+      type = "data_source_generator"
+
+      [config]
+      source_url = "${input_path}"
+      retry_count = 3
+      retry_interval = 1
+    ports:
+      inputs: []
+      outputs:
+        - name: out_data
+          type: string
+          notes: File path emitted for each item in the source
+    config_keys:
+      - key: source_url
+        required: true
+        default: "—"
+        notes: File path, directory glob, or URL
+      - key: retry_count
+        required: false
+        default: "3"
+        notes: Number of retries on source open failure
+      - key: retry_interval
+        required: false
+        default: "1"
+        notes: Seconds between retries
+    notes:
+      - For video files use video_input instead (simpler wiring)
+      - Directory globs emit one path per matching file in lexicographic order
+
+  - name: httpserver_async
+    group: Input
+    devices: [cpu]
+    use_for: HTTP request/reply edges
+    purpose: |
+      Async HTTP server edge. Exposes an HTTP endpoint; each inbound request
+      becomes one pipeline data item. Pairs with a reply port on a downstream
+      flowunit to send the HTTP response. Use for request/reply inference APIs.
+    source_dir: src/drivers/common/flowunit/httpserver_async
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "httpserver_async"
+      device = "cpu"
+      version = "1.0.0"
+      type = "httpserver_async"
+
+      [config]
+      endpoint = "/api/detect"
+      port = 8080
+      max_requests = 10
+    ports:
+      inputs:
+        - name: in_reply
+          type: json/bytes
+          notes: HTTP response body; wire from final result flowunit
+      outputs:
+        - name: out_request
+          type: bytes
+          notes: Raw HTTP request body for each inbound call
+    config_keys:
+      - key: endpoint
+        required: true
+        default: "—"
+        notes: URL path to listen on, e.g. /api/detect
+      - key: port
+        required: true
+        default: "8080"
+        notes: TCP port
+      - key: max_requests
+        required: false
+        default: "10"
+        notes: Max in-flight concurrent requests
+    notes:
+      - The reply port must be wired back from the last flowunit in the pipeline
+      - One request = one pipeline execution; async means requests do not block each other
+
+  # ── Video pipeline ──────────────────────────────────────────────────────────
+
+  - name: video_demuxer
+    group: Video
+    devices: [cpu]
+    use_for: Split mp4/mkv container into elementary streams
+    purpose: |
+      Splits a video container (mp4, mkv, ts, …) into elementary streams.
+      Emits raw encoded packets; wire into video_decoder. Use when you need
+      explicit demux/decode separation (e.g. to route audio and video
+      independently). For simple file-to-frame pipelines prefer video_input.
+    source_dir: src/drivers/common/flowunit/video_demuxer
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "video_demuxer"
+      device = "cpu"
+      version = "1.0.0"
+      type = "video_demuxer"
+    ports:
+      inputs:
+        - name: in_video_url
+          type: string
+          notes: Video file path or URL from video_input
+      outputs:
+        - name: out_video_packet
+          type: video_packet
+          notes: Encoded packet stream for video_decoder
+    config_keys: []
+    notes:
+      - Wire out_video_packet directly into video_decoder:in_video_packet
+      - Audio packets are currently dropped; video only
+
+  - name: video_decoder
+    group: Video
+    devices: [cuda, cpu]
+    use_for: Decode H.264/H.265 to frames (NV12/RGB)
+    purpose: |
+      Decodes H.264/H.265 packets from video_demuxer into raw frames. The
+      `cuda` device uses NVDEC hardware decoder; `cpu` falls back to FFmpeg
+      software decode. Output pixel format is configurable: NV12 (default on
+      cuda, best for GPU preprocessing), or RGB/BGR (for cpu preprocessing).
+    source_dir: src/drivers/common/flowunit/video_decoder
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "video_decoder"
+      device = "cuda"
+      version = "1.0.0"
+      type = "video_decoder"
+
+      [config]
+      pix_fmt = "rgb"
+    ports:
+      inputs:
+        - name: in_video_packet
+          type: video_packet
+          notes: Encoded packet from video_demuxer
+      outputs:
+        - name: out_image
+          type: image
+          notes: Decoded frame in configured pix_fmt
+    config_keys:
+      - key: pix_fmt
+        required: false
+        default: nv12
+        notes: "nv12 | rgb | bgr — NV12 preferred between cuda decode and cuda preprocess"
+    notes:
+      - cuda device uses NVDEC; pix_fmt=nv12 avoids a CPU copy when feeding image_process on cuda
+      - device mismatch with next flowunit is acceptable but adds a memory copy
+
+  - name: video_encoder
+    group: Video
+    devices: [cpu]
+    use_for: "Frames → H.264 mp4"
+    purpose: |
+      Encodes frames to H.264 and muxes into an mp4 container. On macOS set
+      `encoder=h264_videotoolbox` for hardware encode. On Linux with Intel
+      Quick Sync use `encoder=h264_qsv`. Default `libx264` works on any OS.
+    source_dir: src/drivers/common/flowunit/video_encoder
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "video_encoder"
+      device = "cpu"
+      version = "1.0.0"
+      type = "video_encoder"
+
+      [config]
+      dest_url = "${output_video}"
+      encoder = "libx264"
+      bitrate = 2097152
+    ports:
+      inputs:
+        - name: in_image
+          type: image
+          notes: Annotated frame (RGB or BGR)
+      outputs: []
+    config_keys:
+      - key: dest_url
+        required: true
+        default: "—"
+        notes: Output file path; supports ${var} expansion
+      - key: encoder
+        required: false
+        default: libx264
+        notes: "libx264 (any) | h264_videotoolbox (macOS) | h264_qsv (Linux/Intel)"
+      - key: bitrate
+        required: false
+        default: "2097152"
+        notes: Target bitrate in bits/s
+    notes:
+      - Use h264_videotoolbox on macOS for hardware encode (Apple Silicon pipeline)
+      - dest_url directory must exist before the pipeline starts
+
+  # ── Preprocessing ───────────────────────────────────────────────────────────
+
+  - name: resize
+    group: Preprocess
+    devices: [cpu]
+    use_for: Resize frames to a fixed width x height
+    purpose: |
+      Standalone resize flowunit. Scales frames to a target width/height.
+      Simpler than image_process when you only need resize — one config key
+      each for width and height, no colorspace or layout options. Used in the
+      Apple Silicon pipeline (resize → coreml_inference) where image_process
+      is not available on apple_silicon device.
+    source_dir: src/drivers/common/flowunit/resize
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "resize"
+      device = "cpu"
+      version = "1.0.0"
+      type = "resize"
+
+      [config]
+      width = 640
+      height = 640
+    ports:
+      inputs:
+        - name: in_image
+          type: image
+          notes: Input frame; any resolution
+      outputs:
+        - name: out_image
+          type: image
+          notes: Resized frame at configured width x height
+    config_keys:
+      - key: width
+        required: true
+        default: "—"
+        notes: Target width in pixels
+      - key: height
+        required: true
+        default: "—"
+        notes: Target height in pixels
+    notes:
+      - No letterboxing — frame is stretched; use image_process for letterbox
+      - Device variants available for ascend and rockchip (not in v0.4 allowlist)
+
+  - name: image_process
+    group: Preprocess
+    devices: [cuda, cpu]
+    use_for: Resize/letterbox/colorspace/layout convert
+    purpose: |
+      Generic image-processing flowunit. Handles resize, letterbox padding,
+      colorspace conversion (BGR<->RGB, NV12->RGB), and memory layout conversion
+      (HWC<->CHW). The Swiss-army knife for building a preprocessing chain before
+      inference on NVIDIA. Prefer `resize` for Apple Silicon (apple_silicon device
+      is not supported by image_process).
+    source_dir: src/drivers/common/flowunit/image_process
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "image_process"
+      device = "cuda"
+      version = "1.0.0"
+      type = "image_process"
+
+      [config]
+      width = 640
+      height = 640
+      interpolation = "inter_linear"
+      color_mode = "bgr"
+      data_type = "float"
+    ports:
+      inputs:
+        - name: in_image
+          type: image
+          notes: Input frame (NV12 from cuda decoder or RGB/BGR from cpu decoder)
+      outputs:
+        - name: out_image
+          type: image/tensor
+          notes: Preprocessed tensor in configured layout and dtype
+    config_keys:
+      - key: width
+        required: true
+        default: "—"
+        notes: Target width
+      - key: height
+        required: true
+        default: "—"
+        notes: Target height
+      - key: interpolation
+        required: false
+        default: inter_linear
+        notes: "inter_linear | inter_nearest | inter_cubic"
+      - key: color_mode
+        required: false
+        default: bgr
+        notes: "bgr | rgb — output colorspace"
+      - key: data_type
+        required: false
+        default: float
+        notes: "float | uint8"
+    notes:
+      - NV12 input from cuda video_decoder is handled automatically when device=cuda
+      - Does not support apple_silicon device; use resize for Apple Silicon pipelines
+
+  - name: normalize
+    group: Preprocess
+    devices: [cuda, cpu]
+    use_for: Per-channel normalize (mean/std)
+    purpose: |
+      Per-channel normalization. Applies `(pixel - mean) / std` to each channel.
+      Configure `mean` and `std` as comma-separated floats matching the channel
+      count. Use when the model expects ImageNet-normalized input.
+    source_dir: src/drivers/common/flowunit/normalize
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "normalize"
+      device = "cuda"
+      version = "1.0.0"
+      type = "normalize"
+
+      [config]
+      mean = "0.485, 0.456, 0.406"
+      std = "0.229, 0.224, 0.225"
+    ports:
+      inputs:
+        - name: in_data
+          type: float tensor
+          notes: Float32 tensor from image_process
+      outputs:
+        - name: out_data
+          type: float tensor
+          notes: Normalized float32 tensor
+    config_keys:
+      - key: mean
+        required: true
+        default: "—"
+        notes: Comma-separated per-channel mean values (e.g. "0.485, 0.456, 0.406")
+      - key: std
+        required: true
+        default: "—"
+        notes: Comma-separated per-channel std values (e.g. "0.229, 0.224, 0.225")
+    notes:
+      - Channel count inferred from comma count; must match the input tensor
+      - YOLO models typically do not need this (internal normalization in the model)
+
+  - name: mean
+    group: Preprocess
+    devices: [cuda, cpu]
+    use_for: Per-channel mean subtract
+    purpose: |
+      Per-channel mean subtraction. Subtracts a constant from each channel.
+      Simpler than `normalize` when std=1.0 (no division needed). Used by
+      some older detection models (e.g. SSD variants with mean=[104,117,123]).
+    source_dir: src/drivers/common/flowunit/mean
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "mean"
+      device = "cuda"
+      version = "1.0.0"
+      type = "mean"
+
+      [config]
+      mean = "104.0, 117.0, 123.0"
+    ports:
+      inputs:
+        - name: in_data
+          type: float tensor
+          notes: Float32 tensor
+      outputs:
+        - name: out_data
+          type: float tensor
+          notes: Mean-subtracted float32 tensor
+    config_keys:
+      - key: mean
+        required: true
+        default: "—"
+        notes: Comma-separated per-channel mean values
+    notes:
+      - Use normalize instead when you also need to divide by std
+
+  # ── YOLO Postprocessing ─────────────────────────────────────────────────────
+
+  - name: yolo26_post
+    group: Postprocess
+    devices: [cpu]
+    use_for: YOLO detect head -> boxes (anchors, NMS)
+    purpose: |
+      YOLO detect-head postprocessor. Converts raw model output tensors into
+      bounding boxes + class labels + confidence scores, then applies NMS.
+      Supports YOLO v2-v6 anchor-based and anchor-free variants via `anchors`
+      config. Use for standard object detection tasks.
+    source_dir: src/drivers/common/flowunit/yolo26_post
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "yolo26_post"
+      device = "cpu"
+      version = "1.0.0"
+      type = "yolo26_post"
+
+      [config]
+      classes = 80
+      conf_threshold = 0.25
+      nms_threshold = 0.45
+      input_width = 640
+      input_height = 640
+    ports:
+      inputs:
+        - name: in_data
+          type: float tensor
+          notes: Raw model output from inference flowunit
+      outputs:
+        - name: out_data
+          type: json
+          notes: "Detection results — list of {box, class_id, confidence}"
+    config_keys:
+      - key: classes
+        required: true
+        default: "80"
+        notes: Number of classes (must match model head)
+      - key: conf_threshold
+        required: false
+        default: "0.25"
+        notes: Minimum confidence to keep a detection
+      - key: nms_threshold
+        required: false
+        default: "0.45"
+        notes: IoU threshold for NMS suppression
+      - key: input_width
+        required: true
+        default: "640"
+        notes: Model input width (used to scale boxes back to frame coords)
+      - key: input_height
+        required: true
+        default: "640"
+        notes: Model input height
+    notes:
+      - input_width/input_height must match the image_process output size
+      - For anchor-free YOLO11/v8, anchors config is not needed
+
+  - name: yolo_seg_post
+    group: Postprocess
+    devices: [cpu]
+    use_for: YOLO segment head -> masks
+    purpose: |
+      YOLO segmentation-head postprocessor. Extends yolo26_post with per-instance
+      mask decoding. Outputs bounding boxes + instance masks. Requires the model
+      to emit both the detection head and the mask prototype head outputs.
+    source_dir: src/drivers/common/flowunit/yolo_seg_post
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "yolo_seg_post"
+      device = "cpu"
+      version = "1.0.0"
+      type = "yolo_seg_post"
+
+      [config]
+      classes = 80
+      conf_threshold = 0.25
+      nms_threshold = 0.45
+      input_width = 640
+      input_height = 640
+    ports:
+      inputs:
+        - name: in_det
+          type: float tensor
+          notes: Detection head output
+        - name: in_proto
+          type: float tensor
+          notes: Mask prototype head output
+      outputs:
+        - name: out_data
+          type: json
+          notes: Detection results with mask arrays
+    config_keys:
+      - key: classes
+        required: true
+        default: "80"
+        notes: Number of classes
+      - key: conf_threshold
+        required: false
+        default: "0.25"
+        notes: Minimum confidence
+      - key: nms_threshold
+        required: false
+        default: "0.45"
+        notes: IoU threshold for NMS
+      - key: input_width
+        required: true
+        default: "640"
+        notes: Model input width
+      - key: input_height
+        required: true
+        default: "640"
+        notes: Model input height
+    notes:
+      - Requires a segmentation model export (yolo export format=tensorrt task=segment)
+      - Two input ports — both must be wired from the inference flowunit
+
+  - name: yolo_pose_post
+    group: Postprocess
+    devices: [cpu]
+    use_for: YOLO pose head -> keypoints
+    purpose: |
+      YOLO pose-estimation postprocessor. Decodes keypoint coordinates and
+      visibility flags from the model output. Outputs bounding boxes +
+      keypoints arrays. Configure `num_keypoints` to match the model
+      (17 for COCO, 26 for animal pose, etc.).
+    source_dir: src/drivers/common/flowunit/yolo_pose_post
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "yolo_pose_post"
+      device = "cpu"
+      version = "1.0.0"
+      type = "yolo_pose_post"
+
+      [config]
+      classes = 1
+      conf_threshold = 0.25
+      nms_threshold = 0.45
+      input_width = 640
+      input_height = 640
+      num_keypoints = 17
+    ports:
+      inputs:
+        - name: in_data
+          type: float tensor
+          notes: Raw pose model output
+      outputs:
+        - name: out_data
+          type: json
+          notes: "Detection results with keypoints [[x,y,vis], ...]"
+    config_keys:
+      - key: classes
+        required: true
+        default: "1"
+        notes: Number of classes (usually 1 = person for pose)
+      - key: num_keypoints
+        required: true
+        default: "17"
+        notes: Keypoints per instance (17 = COCO human)
+      - key: conf_threshold
+        required: false
+        default: "0.25"
+        notes: Minimum confidence
+      - key: nms_threshold
+        required: false
+        default: "0.45"
+        notes: IoU NMS threshold
+      - key: input_width
+        required: true
+        default: "640"
+        notes: Model input width
+      - key: input_height
+        required: true
+        default: "640"
+        notes: Model input height
+    notes:
+      - num_keypoints must match the exported model exactly
+
+  - name: yolo_track_post
+    group: Postprocess
+    devices: [cpu]
+    use_for: YOLO + tracker -> tracked boxes with IDs
+    purpose: |
+      YOLO + tracker postprocessor. Wraps detect-head decoding with a ByteTrack
+      or SORT tracker to assign persistent IDs across frames. Outputs bounding
+      boxes with a `track_id` field. Use when you need to follow objects over
+      time, not just detect them per frame.
+    source_dir: src/drivers/common/flowunit/yolo_track_post
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "yolo_track_post"
+      device = "cpu"
+      version = "1.0.0"
+      type = "yolo_track_post"
+
+      [config]
+      classes = 80
+      conf_threshold = 0.25
+      nms_threshold = 0.45
+      input_width = 640
+      input_height = 640
+      tracker = "bytetrack"
+    ports:
+      inputs:
+        - name: in_data
+          type: float tensor
+          notes: Raw model output from inference
+      outputs:
+        - name: out_data
+          type: json
+          notes: Detection results with persistent track_id per instance
+    config_keys:
+      - key: classes
+        required: true
+        default: "80"
+        notes: Number of classes
+      - key: tracker
+        required: false
+        default: bytetrack
+        notes: "bytetrack | sort"
+      - key: conf_threshold
+        required: false
+        default: "0.25"
+        notes: Minimum confidence
+      - key: nms_threshold
+        required: false
+        default: "0.45"
+        notes: IoU NMS threshold
+      - key: input_width
+        required: true
+        default: "640"
+        notes: Model input width
+      - key: input_height
+        required: true
+        default: "640"
+        notes: Model input height
+    notes:
+      - track_id is stable within a pipeline run; resets on restart
+      - For frame-by-frame (no tracking), use yolo26_post instead
+
+  # ── Output / Utility ────────────────────────────────────────────────────────
+
+  - name: draw_bbox
+    group: Output
+    devices: [cpu]
+    use_for: Draw boxes/labels on frames
+    purpose: |
+      Draws bounding boxes, class labels, and confidence scores onto frames
+      in-place. Input: decoded frame + detection JSON from a post flowunit.
+      Output: annotated frame ready for video_encoder. Configure color,
+      thickness, and font_size.
+    source_dir: src/drivers/common/flowunit/draw_bbox
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "draw_bbox"
+      device = "cpu"
+      version = "1.0.0"
+      type = "draw_bbox"
+
+      [config]
+      thickness = 2
+      font_size = 0.6
+    ports:
+      inputs:
+        - name: in_frame
+          type: image
+          notes: Original decoded frame (pass through from video_decoder)
+        - name: in_boxes
+          type: json
+          notes: Detection JSON from yolo26_post / yolo_seg_post / yolo_pose_post
+      outputs:
+        - name: out_image
+          type: image
+          notes: Annotated frame
+    config_keys:
+      - key: thickness
+        required: false
+        default: "2"
+        notes: Box line thickness in pixels
+      - key: font_size
+        required: false
+        default: "0.6"
+        notes: Label font scale
+    notes:
+      - Two input ports — both must be wired (frame + boxes)
+      - The original frame must be wired directly from video_decoder, bypassing inference/postprocess
+
+  - name: output_broker
+    group: Output
+    devices: [cpu]
+    use_for: Send results to Kafka/RocketMQ/HTTP/file
+    purpose: |
+      Pluggable result sink. Routes pipeline output to Kafka, RocketMQ, an
+      HTTP endpoint, or a local file — configured by `broker_type`. Use when
+      the pipeline result should be consumed by an external system rather than
+      written to a video file.
+    source_dir: src/drivers/common/flowunit/output_broker
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "output_broker"
+      device = "cpu"
+      version = "1.0.0"
+      type = "output_broker"
+
+      [config]
+      broker_type = "http"
+      broker_url = "http://localhost:9090/results"
+    ports:
+      inputs:
+        - name: in_data
+          type: json/bytes
+          notes: Detection result or any serializable payload
+      outputs: []
+    config_keys:
+      - key: broker_type
+        required: true
+        default: "—"
+        notes: "kafka | rocketmq | http | file"
+      - key: broker_url
+        required: true
+        default: "—"
+        notes: Kafka/RocketMQ broker URL, HTTP endpoint, or file path
+    notes:
+      - For Kafka/RocketMQ, broker_url is the bootstrap server; add `topic` config
+      - For file output, broker_url is the output file path
+
+  - name: meta_mapping
+    group: Utility
+    devices: [cpu]
+    use_for: Rename/project/drop fields between units
+    purpose: |
+      Field-projection flowunit. Renames, reorders, or drops metadata fields
+      between flowunits. Useful when one flowunit emits a field under a name
+      that the next expects under a different name, without writing a custom
+      flowunit. Configure `mappings` as a JSON object of {new_name: old_name}.
+    source_dir: src/drivers/common/flowunit/meta_mapping
+    example_toml: ""
+    default_toml: |
+      [base]
+      name = "meta_mapping"
+      device = "cpu"
+      version = "1.0.0"
+      type = "meta_mapping"
+
+      [config]
+      mappings = "{\"out_key\": \"in_key\"}"
+    ports:
+      inputs:
+        - name: in_data
+          type: any
+          notes: Data item with fields to remap
+      outputs:
+        - name: out_data
+          type: any
+          notes: Data item with remapped fields
+    config_keys:
+      - key: mappings
+        required: true
+        default: "{}"
+        notes: JSON object {new_field_name -> old_field_name}
+    notes:
+      - Fields not mentioned in mappings are passed through unchanged
+      - Use to bridge naming differences without writing a custom C++ flowunit
