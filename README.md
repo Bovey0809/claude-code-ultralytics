@@ -25,9 +25,15 @@ Then restart Claude Code. The skill and commands become available automatically.
 
 ## Smoke test
 
-In Claude Code, in any directory:
+In Claude Code, in a scratch directory. First, fetch a local copy of `coco8.yaml` for `/dataset-check`:
 
-1. `/dataset-check coco8.yaml` — uses the bundled coco8 dataset; should pass.
+```bash
+python3 -c "from ultralytics.utils import ROOT; import shutil; shutil.copy(ROOT/'cfg/datasets/coco8.yaml', '.')"
+```
+
+Then:
+
+1. `/dataset-check coco8.yaml` — should pass with a NOTES block (the YAML's `path` resolves against Ultralytics' `datasets_dir`, not the cwd).
 2. `/train model=yolo11n.pt data=coco8.yaml epochs=1` — completes in a minute on GPU, longer on CPU.
 3. `/predict model=yolo11n.pt source=https://ultralytics.com/images/bus.jpg` — produces an annotated image under `runs/detect/predict/`.
 4. `/export model=yolo11n.pt format=onnx` — produces `yolo11n.onnx`.
