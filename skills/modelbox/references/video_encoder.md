@@ -45,6 +45,7 @@ bitrate = 2097152
 ## Notes / gotchas
 
 - Use h264_videotoolbox on macOS for hardware encode (Apple Silicon pipeline)
+- VideoToolbox's h264 hardware encoder additionally requires width divisible by 16 for its internal macroblock alignment.
 - dest_url directory must exist before the pipeline starts
 
 ## Upstream source
