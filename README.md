@@ -13,6 +13,7 @@ All commands and the skill are namespaced under `/ultralytics:`.
 - **`/ultralytics:dataset-check`** — read-only validator for `data.yaml`. Catches missing paths, label/class mismatches, empty splits.
 - **Skill `/ultralytics:modelbox`** — curated index of 19 ModelBox flowunits (TOML config schema, ports, device options, known-good pipeline recipes for NVIDIA + Apple Silicon). Claude consults this when authoring ModelBox deployment graphs.
 - **Skill `/ultralytics:modelbox-create-flowunit`** — scaffolds a new custom ModelBox flowunit (Python, C++, or inference model-wrapper) under `src/flowunit/<name>/` and wires it into a graph `.toml`. Use when you need to author a flowunit, not just configure a built-in one.
+- **Skill `/ultralytics:analyze`** — end-to-end YOLO model debugging. Five bundled scripts emit `SUMMARY / FINDINGS / RECOMMENDATIONS` reports for training-curve diagnostics (`training_curves.py`), per-class validation metrics (`val_metrics.py`), dataset balance and label sanity (`dataset_audit.py`), prediction failure clustering (`failure_analysis.py`), and run-vs-run comparison (`compare_runs.py`).
 
 ## Requirements
 
