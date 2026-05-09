@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not summary_bullets:
         summary_line = "training appears healthy"
-    elif overfit or nans:
+    elif overfit or underfit or nans:
         summary_line = "training has issues — see findings"
     else:
         summary_line = "training mostly healthy"
