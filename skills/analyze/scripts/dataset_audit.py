@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
-from typing import Iterable
 
 from PIL import Image
 
@@ -19,6 +18,15 @@ import _common  # noqa: E402
 
 
 _IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+
+
+def _labels_dir_for(img_dir: Path) -> Path:
+    """Map .../images/<split> -> .../labels/<split>; portable across OSes."""
+    parts = img_dir.parts
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] == "images":
+            return Path(*parts[:i], "labels", *parts[i + 1 :])
+    return img_dir  # fallback: caller will see no labels and surface as missing
 
 
 def _list_images(img_dir: Path) -> list[Path]:
@@ -111,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     for split in ("train", "val", "test"):
         if split in data:
             img_dir = data[split]
-            lbl_dir = Path(str(img_dir).replace("/images/", "/labels/"))
+            lbl_dir = _labels_dir_for(img_dir)
             splits.append(_audit_split(split, img_dir, lbl_dir))
 
     findings: list[str] = []
