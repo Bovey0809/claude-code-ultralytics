@@ -9,8 +9,8 @@
     {
       "name": "ultralytics",
       "source": "./",
-      "description": "Train, predict, export, and validate datasets with Ultralytics YOLO. Includes ModelBox flowunit index and scaffolder for new custom flowunits.",
-      "version": "0.5.0",
+      "description": "Train, predict, export, validate datasets, and analyze YOLO models. Includes ModelBox flowunit index and scaffolder for new custom flowunits.",
+      "version": "0.6.0",
       "homepage": "https://github.com/Bovey0809/claude-code-ultralytics",
       "repository": "https://github.com/Bovey0809/claude-code-ultralytics",
       "category": "computer-vision",
