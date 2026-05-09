@@ -48,6 +48,7 @@ def test_ascii_sparkline_length():
 def test_ascii_sparkline_handles_constant():
     s = _common.ascii_sparkline([1.0, 1.0, 1.0], width=5)
     assert len(s) == 5
+    assert len(set(s)) == 1
 
 
 def test_ascii_histogram_returns_lines():

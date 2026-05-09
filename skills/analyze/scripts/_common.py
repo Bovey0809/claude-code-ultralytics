@@ -31,7 +31,7 @@ def find_weights(run_dir: Path, prefer: str = "best") -> Path:
         p = weights_dir / f"{name}.pt"
         if p.is_file():
             return p
-    raise FileNotFoundError(f"No best.pt/last.pt under {weights_dir}")
+    raise FileNotFoundError(f"No weights found under {weights_dir} (tried: {', '.join(sorted(seen))})")
 
 
 def load_data_yaml(path: Path) -> dict:

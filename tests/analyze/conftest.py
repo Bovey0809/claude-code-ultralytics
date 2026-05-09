@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 import yaml
+from PIL import Image
 
 # Make `from skills.analyze.scripts import _common` importable.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -47,7 +48,6 @@ def make_data_yaml(tmp_path):
                 for _ in range(count):
                     stem = f"{split}_{idx:04d}"
                     idx += 1
-                    from PIL import Image
                     Image.new("RGB", image_size, "white").save(img_dir / f"{stem}.jpg")
                     (lbl_dir / f"{stem}.txt").write_text(f"{cls_id} 0.5 0.5 0.2 0.2\n")
 
