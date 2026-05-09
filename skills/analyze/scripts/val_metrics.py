@@ -36,11 +36,27 @@ def _from_model(run_dir: Path, data_yaml: Path | None) -> dict:
     }
     per_class = []
     if hasattr(box, "ap_class_index") and len(box.ap_class_index):
-        for i, cls_idx in enumerate(box.ap_class_index):
+        # nt_per_class lives on the result object in modern ultralytics; fall back
+        # to box for older versions.
+        nt = getattr(res, "nt_per_class", None)
+        if nt is None:
+            nt = getattr(box, "nt_per_class", None)
+        ap_idx = list(box.ap_class_index)
+        # nt_per_class is a 1-D array of length nc (indexed by global class id) on
+        # most ultralytics versions, but some emit a length-len(ap_class_index)
+        # array indexed by position. Pick the matching scheme.
+        nt_by_position = nt is not None and hasattr(nt, "__len__") and len(nt) == len(ap_idx)
+        for i, cls_idx in enumerate(ap_idx):
             name = names[cls_idx] if cls_idx < len(names) else f"class_{cls_idx}"
+            if nt is None:
+                support = 0
+            elif nt_by_position:
+                support = int(nt[i])
+            else:
+                support = int(nt[cls_idx]) if cls_idx < len(nt) else 0
             per_class.append({
                 "name": name,
-                "support": int(box.nt_per_class[cls_idx]) if hasattr(box, "nt_per_class") else 0,
+                "support": support,
                 "P": float(box.p[i]) if i < len(box.p) else float("nan"),
                 "R": float(box.r[i]) if i < len(box.r) else float("nan"),
                 "mAP50": float(box.ap50[i]) if i < len(box.ap50) else float("nan"),

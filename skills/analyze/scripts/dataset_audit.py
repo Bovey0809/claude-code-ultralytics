@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     names = data.get("names", [])
     splits = []
     for split in ("train", "val", "test"):
-        if split in data:
+        if split in data and data[split] is not None:
             img_dir = data[split]
             lbl_dir = _labels_dir_for(img_dir)
             splits.append(_audit_split(split, img_dir, lbl_dir))

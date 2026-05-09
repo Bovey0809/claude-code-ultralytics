@@ -34,12 +34,31 @@ def find_weights(run_dir: Path, prefer: str = "best") -> Path:
     raise FileNotFoundError(f"No weights found under {weights_dir} (tried: {', '.join(sorted(seen))})")
 
 
+def _ultralytics_datasets_dir() -> Path | None:
+    """Read ultralytics' configured datasets_dir, falling back to None."""
+    import json
+
+    settings = Path.home() / ".config" / "Ultralytics" / "settings.json"
+    if not settings.is_file():
+        return None
+    try:
+        d = json.loads(settings.read_text()).get("datasets_dir")
+        return Path(d) if d else None
+    except Exception:
+        return None
+
+
 def load_data_yaml(path: Path) -> dict:
     path = Path(path)
     raw = yaml.safe_load(path.read_text())
     base = Path(raw.get("path", path.parent)).expanduser()
     if not base.is_absolute():
-        base = (path.parent / base).resolve()
+        candidate = (path.parent / base).resolve()
+        if not candidate.is_dir():
+            ds_dir = _ultralytics_datasets_dir()
+            if ds_dir is not None:
+                candidate = (ds_dir / base).resolve()
+        base = candidate
     out = dict(raw)
     out["path"] = base
     for key in ("train", "val", "test"):
