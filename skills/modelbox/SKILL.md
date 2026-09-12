@@ -245,4 +245,4 @@ This is Recipe 1 with three lines changed (marked `# ← changed`):
 - See the `yolo` skill for the Ultralytics side of the pipeline: training, export to TensorRT/CoreML, dataset validation.
 
 ---
-_Generated from modelbox@125d1cd6b746cbfd410ac288a1e1f2e2664fb77e (2026-05-06). Re-run `python3 tools/build-modelbox-skill.py` to update._
+_Generated from modelbox@faa1e931a464fb3c30e6a9988cc4a3acd6aaa26d (2024-03-13). Re-run `python3 tools/build-modelbox-skill.py` to update._
