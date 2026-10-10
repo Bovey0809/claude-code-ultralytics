@@ -1,7 +1,7 @@
 ---
 generated: true
-modelbox_commit: 125d1cd6b746cbfd410ac288a1e1f2e2664fb77e
-modelbox_commit_date: 2026-05-06
+modelbox_commit: faa1e931a464fb3c30e6a9988cc4a3acd6aaa26d
+modelbox_commit_date: 2024-03-13
 ---
 
 # `normalize`
@@ -51,4 +51,4 @@ std = "0.229, 0.224, 0.225"
 - `src/drivers/common/flowunit/normalize/`
 
 ---
-_Generated from modelbox@125d1cd6b746cbfd410ac288a1e1f2e2664fb77e (2026-05-06)._
+_Generated from modelbox@faa1e931a464fb3c30e6a9988cc4a3acd6aaa26d (2024-03-13)._
